@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local P2P Share</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Electron local network workspace</p>
+        <h1>Local P2P Share</h1>
+        <p class="lede">Automatic LAN discovery, TCP chat, and a custom UDP file lane for fast local transfers.</p>
+      </div>
+
+      <div class="hero-card">
+        <div class="hero-card-label">This instance</div>
+        <div class="hero-card-value" id="local-name">Starting...</div>
+        <div class="hero-card-meta">
+          <span>IP <strong id="local-ip">0.0.0.0</strong></span>
+          <span id="local-ports">Ports pending</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel panel-large">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">Discovery</p>
+            <h2>Active peers on the network</h2>
+          </div>
+          <div class="status-pill" id="peer-count">0 active peers</div>
+        </div>
+
+        <div class="discovery-status" id="discovery-status" data-tone="info">Booting networking stack...</div>
+        <div class="peers-grid" id="peers-grid"></div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Activity</p>
+              <h2>Live log</h2>
+            </div>
+          </div>
+          <ul class="activity-list" id="activity-list"></ul>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="renderer.js" defer></script>
+</body>
+</html>

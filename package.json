@@ -1,0 +1,17 @@
+{
+  "name": "local-p2p-share",
+  "version": "1.0.0",
+  "description": "Electron-based local network P2P share and chat app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
