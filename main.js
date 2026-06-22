@@ -1,14 +1,18 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
+const { startServer, stopServer } = require('./server');
 
 let mainWindow;
 
+app.commandLine.appendSwitch('disable-gpu');
+app.setPath('userData', path.join(app.getPath('temp'), 'local-p2p-share-data'));
+
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 1080,
-    minHeight: 720,
+    width: 1360,
+    height: 900,
+    minWidth: 1100,
+    minHeight: 760,
     backgroundColor: '#07111f',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -18,12 +22,34 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile('index.html');
+  // Check if we are in development mode
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'client/dist/index.html'));
+  }
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  try {
+    const port = await startServer();
+    process.env.LOCAL_SERVER_PORT = String(port);
+  } catch (err) {
+    console.error('Failed to start local P2P server:', err);
+  }
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
+  try {
+    stopServer();
+  } catch (e) {}
+  
   if (process.platform !== 'darwin') {
     app.quit();
   }
