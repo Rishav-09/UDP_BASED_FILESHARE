@@ -28,51 +28,28 @@ class SessionManager {
       this.broadcastToLocalClients('peer-connection-status', { peerId, status: 'connected' });
     });
 
-    socket.on('connection-request', ({ peerId, username, deviceNickname }) => {
+    socket.on('connection-request', ({ peerId, username, deviceNickname, publicKey }) => {
+      this.sessions.set(peerId, { isApproved: false, peerPublicKey: publicKey });
       this.broadcastToLocalClients('incoming-connection-request', { peerId, username, deviceNickname });
     });
 
-    socket.on('connection-response', ({ peerId, accepted }) => {
+    socket.on('connection-response', ({ peerId, accepted, publicKey }) => {
       if (accepted) {
-        // Start DH Key exchange
-        const { ecdh, publicKey } = generateECDH();
-        this.sessions.set(peerId, { isApproved: true, ecdh });
-        socket.emit('key-exchange', { peerId: this.instanceId, publicKey });
+        const session = this.sessions.get(peerId);
+        if (session && session.ecdh) {
+          try {
+            const aesKey = deriveSessionKey(session.ecdh, publicKey);
+            session.aesKey = aesKey;
+            session.isApproved = true;
+            this.sessions.set(peerId, session);
+            this.broadcastToLocalClients('connection-established', { peerId });
+          } catch (e) {
+            console.error('DH Key derivation failed', e);
+          }
+        }
       } else {
         this.sessions.delete(peerId);
         this.broadcastToLocalClients('connection-rejected', { peerId });
-      }
-    });
-
-    socket.on('key-exchange', ({ peerId, publicKey }) => {
-      const session = this.sessions.get(peerId);
-      if (session) {
-        try {
-          const aesKey = deriveSessionKey(session.ecdh, publicKey);
-          session.aesKey = aesKey;
-          this.sessions.set(peerId, session);
-          
-          this.broadcastToLocalClients('connection-established', { peerId });
-          
-          // If we are responding, we also need to send our public key back
-          if (!session.sentKey) {
-            const { ecdh: newEcdh, publicKey: ourPublicKey } = generateECDH();
-            session.ecdh = newEcdh;
-            session.aesKey = deriveSessionKey(newEcdh, publicKey);
-            session.sentKey = true;
-            this.sessions.set(peerId, session);
-            socket.emit('key-exchange', { peerId: this.instanceId, publicKey: ourPublicKey });
-          }
-        } catch (e) {
-          console.error('DH Key derivation failed', e);
-        }
-      } else {
-        // We received their key first, prepare ours
-        const { ecdh, publicKey: ourPublicKey } = generateECDH();
-        const aesKey = deriveSessionKey(ecdh, publicKey);
-        this.sessions.set(peerId, { isApproved: true, aesKey, ecdh, sentKey: true });
-        socket.emit('key-exchange', { peerId: this.instanceId, publicKey: ourPublicKey });
-        this.broadcastToLocalClients('connection-established', { peerId });
       }
     });
 
@@ -211,6 +188,12 @@ class SessionManager {
           sender.on('error', (err) => {
             this.broadcastToLocalClients('transfer-error', { transferId, message: err.message });
             db.updateTransfer(transferId, { status: 'failed', error: err.message });
+            this.activeTransfers.delete(transferId);
+
+            const peerSocket = this.activeSockets.get(peerId);
+            if (peerSocket) {
+              peerSocket.emit('peer-transfer-error', { transferId, message: err.message });
+            }
           });
 
           sender.on('complete', () => {
@@ -223,6 +206,11 @@ class SessionManager {
         } catch (err) {
           this.broadcastToLocalClients('transfer-error', { transferId, message: err.message });
           this.activeTransfers.delete(transferId);
+
+          const peerSocket = this.activeSockets.get(peerId);
+          if (peerSocket) {
+            peerSocket.emit('peer-transfer-error', { transferId, message: err.message });
+          }
         }
       } else {
         this.broadcastToLocalClients('transfer-rejected', { transferId });
@@ -238,6 +226,17 @@ class SessionManager {
         }
         this.activeTransfers.delete(transferId);
         this.broadcastToLocalClients('transfer-status-log', { transferId, message: 'Cancelled' });
+      }
+    });
+
+    socket.on('peer-transfer-error', ({ transferId, message }) => {
+      const transfer = this.activeTransfers.get(transferId);
+      if (transfer) {
+        if (transfer.instance) {
+          transfer.instance.stop();
+        }
+        this.activeTransfers.delete(transferId);
+        this.broadcastToLocalClients('transfer-error', { transferId, message });
       }
     });
 
@@ -292,13 +291,16 @@ class SessionManager {
       const socket = await this.connectToPeer(peer);
       const settings = db.getSettings();
 
+      const { ecdh, publicKey } = generateECDH();
+
       socket.emit('connection-request', {
         peerId: this.instanceId,
         username: settings.username,
-        deviceNickname: settings.deviceNickname
+        deviceNickname: settings.deviceNickname,
+        publicKey
       });
       
-      this.sessions.set(peerId, { isApproved: false });
+      this.sessions.set(peerId, { isApproved: false, ecdh });
       return { success: true };
     } catch (err) {
       console.error('Failed to send connection request:', err);
@@ -311,13 +313,19 @@ class SessionManager {
     const socket = this.activeSockets.get(peerId);
     if (!socket) return { success: false, error: 'Socket not found' };
 
-    socket.emit('connection-response', { peerId: this.instanceId, accepted });
-    
     if (accepted) {
+      const session = this.sessions.get(peerId);
+      const peerPublicKey = session ? session.peerPublicKey : null;
+      if (!peerPublicKey) return { success: false, error: 'Peer public key not found' };
+
       const { ecdh, publicKey } = generateECDH();
-      this.sessions.set(peerId, { isApproved: true, ecdh });
-      socket.emit('key-exchange', { peerId: this.instanceId, publicKey });
+      const aesKey = deriveSessionKey(ecdh, peerPublicKey);
+      this.sessions.set(peerId, { isApproved: true, aesKey, ecdh });
+      
+      socket.emit('connection-response', { peerId: this.instanceId, accepted: true, publicKey });
+      this.broadcastToLocalClients('connection-established', { peerId });
     } else {
+      socket.emit('connection-response', { peerId: this.instanceId, accepted: false });
       this.sessions.delete(peerId);
     }
     return { success: true };
@@ -470,6 +478,11 @@ class SessionManager {
         });
 
         this.activeTransfers.delete(transferId);
+
+        const peerSocket = this.activeSockets.get(transfer.peerId);
+        if (peerSocket) {
+          peerSocket.emit('peer-transfer-error', { transferId, message: err.message });
+        }
       });
 
       // Listen for UDP receiver binding

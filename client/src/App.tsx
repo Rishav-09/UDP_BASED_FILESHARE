@@ -74,6 +74,8 @@ export default function App() {
   // Chart historical data points for Recharts
   const [chartData, setChartData] = useState<any[]>([]);
 
+  const [dismissedTransfers, setDismissedTransfers] = useState<Set<string>>(new Set());
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +90,36 @@ export default function App() {
 
   // Monitor typing debounce
   const typingTimeoutRef = useRef<any>(null);
+
+  const dismissTransfer = (transferId: string) => {
+    setDismissedTransfers(prev => {
+      const next = new Set(prev);
+      next.add(transferId);
+      return next;
+    });
+  };
+
+  // Automatically dismiss finished transfers (completed, failed, rejected, cancelled) after 5 seconds
+  useEffect(() => {
+    const timers: any[] = [];
+    Object.values(transfers).forEach(t => {
+      const statusLower = (t.status || '').toLowerCase();
+      const isFinished = statusLower === 'completed' || 
+                         statusLower === 'failed' || 
+                         statusLower.includes('error') || 
+                         statusLower === 'rejected' || 
+                         statusLower === 'cancelled';
+      if (isFinished && !dismissedTransfers.has(t.transferId)) {
+        const timer = setTimeout(() => {
+          dismissTransfer(t.transferId);
+        }, 5000);
+        timers.push(timer);
+      }
+    });
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [transfers, dismissedTransfers]);
 
   // Scroll to bottom of chat
   useEffect(() => {
@@ -530,52 +562,87 @@ export default function App() {
             </div>
 
             {/* File Transfer Monitor Dashboard Area (Inline overlay in Chat for ongoing transfers) */}
-            {Object.values(transfers).filter(t => {
-              const status = t.status ? t.status.toLowerCase() : '';
-              return status !== 'completed' && status !== 'failed' && status !== 'rejected' && status !== 'cancelled';
-            }).map(t => {
+            {Object.values(transfers).filter(t => !dismissedTransfers.has(t.transferId)).map(t => {
               const isUpload = t.direction === 'upload';
+              const statusLower = (t.status || '').toLowerCase();
+              const isCompleted = statusLower === 'completed';
+              const isFailed = statusLower === 'failed' || statusLower.includes('error') || statusLower.includes('fail');
+              const isRejected = statusLower === 'rejected';
+              const isCancelled = statusLower === 'cancelled';
+              const isFinished = isCompleted || isFailed || isRejected || isCancelled;
+
+              let statusText = 'Transferring payload...';
+              if (t.status === 'requested') statusText = 'Initiating transfer...';
+              else if (t.status === 'encrypting') statusText = 'Compressing & encrypting...';
+              else if (isCompleted) statusText = 'Transfer completed successfully';
+              else if (isFailed) statusText = `Transfer failed: ${t.status}`;
+              else if (isRejected) statusText = 'Transfer declined by peer';
+              else if (isCancelled) statusText = 'Transfer cancelled';
+
               return (
-                <div key={t.transferId} className="p-4 bg-white/2 border-t border-white/5 flex flex-col gap-2">
+                <div key={t.transferId} className={`p-4 bg-white/2 border-t border-white/5 flex flex-col gap-2 ${isCompleted ? 'border-l-4 border-l-emerald-500' : isFailed || isRejected ? 'border-l-4 border-l-rose-500' : isCancelled ? 'border-l-4 border-l-gray-500' : ''}`}>
                   <div className="flex justify-between items-center text-xs">
                     <div className="flex items-center gap-2 truncate">
-                      {isUpload ? <FileUp size={16} className="text-blue-400" /> : <Download size={16} className="text-emerald-400" />}
-                      <span className="font-semibold text-gray-100 truncate">{t.status === 'requested' ? 'Initiating transfer...' : t.status === 'encrypting' ? 'Compressing & encrypting...' : 'Transferring payload...'}</span>
+                      {isCompleted ? (
+                        <span className="text-emerald-400 font-bold">✓</span>
+                      ) : isFailed || isRejected || isCancelled ? (
+                        <span className="text-rose-400 font-bold">✗</span>
+                      ) : isUpload ? (
+                        <FileUp size={16} className="text-blue-400" />
+                      ) : (
+                        <Download size={16} className="text-emerald-400" />
+                      )}
+                      <span className="font-semibold text-gray-100 truncate">{statusText}</span>
                     </div>
-                    <span className="text-gray-400">{formatSpeed(t.speed)}</span>
+                    {!isFinished && <span className="text-gray-400">{formatSpeed(t.speed)}</span>}
                   </div>
                   
                   <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden relative border border-white/5">
                     <div 
-                      className={`h-full bg-gradient-to-r ${isUpload ? 'from-blue-500 to-accent' : 'from-emerald-500 to-teal-400'} transition-all duration-300`}
-                      style={{ width: `${(t.progress || 0) * 100}%` }}
+                      className={`h-full bg-gradient-to-r ${isFailed || isRejected ? 'from-rose-500 to-red-600' : isCancelled ? 'from-gray-500 to-gray-600' : isCompleted ? 'from-emerald-500 to-teal-400' : isUpload ? 'from-blue-500 to-accent' : 'from-emerald-500 to-teal-400'} transition-all duration-300`}
+                      style={{ width: `${isFinished ? 100 : (t.progress || 0) * 100}%` }}
                     />
                   </div>
 
                   <div className="flex justify-between items-center text-[10px] text-gray-400">
-                    <span>{Math.round((t.progress || 0) * 100)}% complete</span>
+                    <span>{isFinished ? (isCompleted ? '100% complete' : 'Stopped') : `${Math.round((t.progress || 0) * 100)}% complete`}</span>
                     <div className="flex gap-2">
-                      {t.status === 'transferring' ? (
+                      {!isFinished ? (
+                        <>
+                          {t.status === 'transferring' ? (
+                            <button 
+                              onClick={() => controlTransfer(t.transferId, 'pause')}
+                              className="p-1 hover:text-white hover:bg-white/5 rounded"
+                              title="Pause"
+                            >
+                              <Pause size={12} />
+                            </button>
+                          ) : t.status === 'Paused' ? (
+                            <button 
+                              onClick={() => controlTransfer(t.transferId, 'resume')}
+                              className="p-1 hover:text-white hover:bg-white/5 rounded"
+                              title="Resume"
+                            >
+                              <Play size={12} />
+                            </button>
+                          ) : null}
+                          <button 
+                            onClick={() => controlTransfer(t.transferId, 'cancel')}
+                            className="p-1 hover:text-rose-400 hover:bg-white/5 rounded"
+                            title="Cancel"
+                          >
+                            <X size={12} />
+                          </button>
+                        </>
+                      ) : (
                         <button 
-                          onClick={() => controlTransfer(t.transferId, 'pause')}
-                          className="p-1 hover:text-white hover:bg-white/5 rounded"
+                          onClick={() => dismissTransfer(t.transferId)}
+                          className="p-1 hover:text-white hover:bg-white/5 rounded text-gray-400"
+                          title="Dismiss"
                         >
-                          <Pause size={12} />
+                          <X size={12} />
                         </button>
-                      ) : t.status === 'Paused' ? (
-                        <button 
-                          onClick={() => controlTransfer(t.transferId, 'resume')}
-                          className="p-1 hover:text-white hover:bg-white/5 rounded"
-                        >
-                          <Play size={12} />
-                        </button>
-                      ) : null}
-                      <button 
-                        onClick={() => controlTransfer(t.transferId, 'cancel')}
-                        className="p-1 hover:text-rose-400 hover:bg-white/5 rounded"
-                      >
-                        <X size={12} />
-                      </button>
+                      )}
                     </div>
                   </div>
                 </div>
