@@ -36,6 +36,17 @@ class FileReceiver extends EventEmitter {
 
     // Sockets
     this.socket = null;
+
+    this.finReceived = false;
+    this.finPacket = null;
+  }
+
+  setAesKey(aesKey) {
+    this.aesKey = aesKey;
+    if (this.finReceived && this.finPacket) {
+      this.emit('status', 'Secure key received, resuming decryption...');
+      this.processFinPacket(this.finPacket);
+    }
   }
 
   start() {
@@ -173,6 +184,14 @@ class FileReceiver extends EventEmitter {
       return;
     }
 
+    // Defer processing if aesKey is not yet set (race condition prevention)
+    if (!this.aesKey) {
+      this.finReceived = true;
+      this.finPacket = packet;
+      this.emit('status', 'Waiting for secure key exchange...');
+      return;
+    }
+
     // Mark as finished to prevent duplicate FIN processing
     this.isFinished = true;
 
@@ -227,6 +246,7 @@ class FileReceiver extends EventEmitter {
       this.emit('complete', decompressedData);
       this.stop();
     } catch (err) {
+      console.error('[SwiftShare Debug] Decryption failed! aesKey:', this.aesKey, 'Error:', err);
       this.isFinished = false; // Reset to allow retry/retransmission if needed
       this.emit('error', err);
     }

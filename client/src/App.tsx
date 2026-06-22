@@ -22,7 +22,11 @@ import {
   Lock,
   TrendingUp,
   Clock,
-  Database
+  Database,
+  Image,
+  Video,
+  Music,
+  FileText
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -142,8 +146,11 @@ export default function App() {
     }, 1500);
   };
 
-  const handleFileAttach = () => {
-    fileInputRef.current?.click();
+  const handleFileAttach = (acceptType: string) => {
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = acceptType;
+      fileInputRef.current.click();
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -588,11 +595,35 @@ export default function App() {
                   />
                   <button
                     type="button"
-                    onClick={handleFileAttach}
-                    className="p-3 bg-white/5 hover:bg-white/10 border border-white/5 text-gray-300 hover:text-white rounded-xl transition flex items-center justify-center shrink-0"
-                    title="Send File"
+                    onClick={() => handleFileAttach('image/*')}
+                    className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
+                    title="Send Image"
                   >
-                    <FileUp size={18} />
+                    <Image size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFileAttach('video/*')}
+                    className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
+                    title="Send Video"
+                  >
+                    <Video size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFileAttach('audio/*')}
+                    className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
+                    title="Send Audio"
+                  >
+                    <Music size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFileAttach('application/pdf,text/*')}
+                    className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
+                    title="Send Document (PDF/Text)"
+                  >
+                    <FileText size={16} />
                   </button>
                   <input
                     type="text"

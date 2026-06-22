@@ -484,7 +484,7 @@ class SessionManager {
           // Keep a backup listener to bind key once sender emits it
           socket.once('file-transfer-crypto-info', ({ transferId: tid, aesKey }) => {
             if (tid === transferId) {
-              receiver.aesKey = aesKey;
+              receiver.setAesKey(aesKey);
             }
           });
         }
