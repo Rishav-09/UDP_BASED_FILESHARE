@@ -71,22 +71,22 @@ io.on('connection', (socket) => {
     });
 
     socket.on('get-settings', (cb) => {
-      cb(db.getSettings());
+      if (typeof cb === 'function') cb(db.getSettings());
     });
 
     socket.on('update-settings', (settings, cb) => {
       db.updateSettings(settings);
       discoveryService.announce(); // announce updated nickname immediately
-      cb({ success: true });
+      if (typeof cb === 'function') cb({ success: true });
     });
 
     socket.on('get-chats', (peerId, cb) => {
-      cb(db.getMessages(peerId));
+      if (typeof cb === 'function') cb(db.getMessages(peerId));
     });
 
     socket.on('send-chat', ({ peerId, text }, cb) => {
       const res = sessionManager.sendChatMessage(peerId, text);
-      cb(res);
+      if (typeof cb === 'function') cb(res);
     });
 
     socket.on('send-typing', ({ peerId, isTyping }) => {
@@ -94,36 +94,38 @@ io.on('connection', (socket) => {
     });
 
     socket.on('connect-peer', (peerId, cb) => {
-      sessionManager.sendConnectionRequest(peerId).then(cb);
+      sessionManager.sendConnectionRequest(peerId).then((res) => {
+        if (typeof cb === 'function') cb(res);
+      });
     });
 
     socket.on('respond-connection', ({ peerId, accepted }, cb) => {
       const res = sessionManager.respondConnectionRequest(peerId, accepted);
-      cb(res);
+      if (typeof cb === 'function') cb(res);
     });
 
     socket.on('send-file', ({ peerId, fileName, fileBytes, mimeType }, cb) => {
       const res = sessionManager.sendFileTransferRequest(peerId, fileName, fileBytes, mimeType);
-      cb(res);
+      if (typeof cb === 'function') cb(res);
     });
 
     socket.on('respond-file', ({ transferId, accepted }, cb) => {
       const res = sessionManager.respondFileTransferRequest(transferId, accepted);
-      cb(res);
+      if (typeof cb === 'function') cb(res);
     });
 
     socket.on('control-transfer', ({ transferId, command }, cb) => {
       const res = sessionManager.controlTransfer(transferId, command);
-      cb(res);
+      if (typeof cb === 'function') cb(res);
     });
 
     socket.on('get-transfers-history', (cb) => {
-      cb(db.getTransfers());
+      if (typeof cb === 'function') cb(db.getTransfers());
     });
 
     socket.on('clear-chat', (peerId, cb) => {
       db.clearChat(peerId);
-      cb({ success: true });
+      if (typeof cb === 'function') cb({ success: true });
     });
   } else {
     // This is an incoming connection from a LAN peer node

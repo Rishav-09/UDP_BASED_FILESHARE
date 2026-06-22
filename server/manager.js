@@ -115,6 +115,16 @@ class SessionManager {
 
     // File Transfer Handshake Events
     socket.on('file-transfer-request', ({ transferId, peerId, fileName, fileSize, mimeType, sha256Hash, compressionType }) => {
+      this.queueIncomingFileRequest({
+        transferId,
+        peerId,
+        fileName,
+        fileSize,
+        mimeType,
+        sha256Hash,
+        compressionType
+      });
+
       this.broadcastToLocalClients('incoming-file-request', {
         transferId,
         peerId,
@@ -217,6 +227,17 @@ class SessionManager {
       } else {
         this.broadcastToLocalClients('transfer-rejected', { transferId });
         this.activeTransfers.delete(transferId);
+      }
+    });
+
+    socket.on('peer-cancel-transfer', ({ transferId }) => {
+      const transfer = this.activeTransfers.get(transferId);
+      if (transfer) {
+        if (transfer.instance) {
+          transfer.instance.stop();
+        }
+        this.activeTransfers.delete(transferId);
+        this.broadcastToLocalClients('transfer-status-log', { transferId, message: 'Cancelled' });
       }
     });
 
@@ -473,6 +494,7 @@ class SessionManager {
     } else {
       socket.emit('file-transfer-response', { transferId, peerId: this.instanceId, accepted: false });
       this.activeTransfers.delete(transferId);
+      this.broadcastToLocalClients('transfer-rejected', { transferId });
     }
 
     return { success: true };
@@ -501,6 +523,11 @@ class SessionManager {
       transfer.instance.stop();
       this.activeTransfers.delete(transferId);
       this.broadcastToLocalClients('transfer-status-log', { transferId, message: 'Cancelled' });
+
+      const socket = this.activeSockets.get(transfer.peerId);
+      if (socket) {
+        socket.emit('peer-cancel-transfer', { transferId });
+      }
     }
 
     return { success: true };

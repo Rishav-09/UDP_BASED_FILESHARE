@@ -523,7 +523,10 @@ export default function App() {
             </div>
 
             {/* File Transfer Monitor Dashboard Area (Inline overlay in Chat for ongoing transfers) */}
-            {Object.values(transfers).filter(t => t.status !== 'completed' && t.status !== 'failed').map(t => {
+            {Object.values(transfers).filter(t => {
+              const status = t.status ? t.status.toLowerCase() : '';
+              return status !== 'completed' && status !== 'failed' && status !== 'rejected' && status !== 'cancelled';
+            }).map(t => {
               const isUpload = t.direction === 'upload';
               return (
                 <div key={t.transferId} className="p-4 bg-white/2 border-t border-white/5 flex flex-col gap-2">
@@ -580,6 +583,7 @@ export default function App() {
                     type="file" 
                     ref={fileInputRef} 
                     onChange={handleFileChange}
+                    accept="image/*,video/*,audio/*,application/pdf,text/*"
                     className="hidden" 
                   />
                   <button
