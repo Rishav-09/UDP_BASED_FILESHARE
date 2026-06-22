@@ -19,7 +19,8 @@ function generateECDH() {
 function deriveSessionKey(ecdh, peerPublicKeyHex) {
   const sharedSecret = ecdh.computeSecret(peerPublicKeyHex, 'hex');
   // Use HKDF to derive a 256-bit key from the shared secret
-  return crypto.hkdfSync('sha256', sharedSecret, Buffer.alloc(0), Buffer.alloc(0), 32);
+  const derivedKey = crypto.hkdfSync('sha256', sharedSecret, Buffer.alloc(0), Buffer.alloc(0), 32);
+  return Buffer.from(derivedKey);
 }
 
 /**
