@@ -25,8 +25,49 @@ class DiscoveryService extends EventEmitter {
     this.isListening = false;
   }
 
+  isVirtualInterface(name) {
+    const lower = name.toLowerCase();
+    return lower.includes('virtual') || 
+           lower.includes('veth') || 
+           lower.includes('wsl') || 
+           lower.includes('loopback') || 
+           lower.includes('host-only') || 
+           lower.includes('vmware') || 
+           lower.includes('hyper-v') ||
+           lower.includes('docker') ||
+           lower.includes('vpn');
+  }
+
+  getBroadcastAddress(ip, netmask) {
+    try {
+      const ipParts = ip.split('.').map(Number);
+      const maskParts = netmask.split('.').map(Number);
+      if (ipParts.length !== 4 || maskParts.length !== 4) return null;
+      const broadcastParts = [];
+      for (let i = 0; i < 4; i++) {
+        broadcastParts.push(ipParts[i] | (255 - maskParts[i]));
+      }
+      return broadcastParts.join('.');
+    } catch (e) {
+      return null;
+    }
+  }
+
   getLocalIP() {
     const interfaces = os.networkInterfaces();
+    let fallback = '127.0.0.1';
+    
+    // First pass: look for a non-virtual IPv4 interface
+    for (const name of Object.keys(interfaces)) {
+      if (this.isVirtualInterface(name)) continue;
+      for (const entry of interfaces[name]) {
+        if (entry.family === 'IPv4' && !entry.internal) {
+          return entry.address;
+        }
+      }
+    }
+    
+    // Second pass: any non-internal IPv4
     for (const name of Object.keys(interfaces)) {
       for (const entry of interfaces[name]) {
         if (entry.family === 'IPv4' && !entry.internal) {
@@ -34,7 +75,8 @@ class DiscoveryService extends EventEmitter {
         }
       }
     }
-    return '127.0.0.1';
+    
+    return fallback;
   }
 
   start() {
@@ -110,11 +152,33 @@ class DiscoveryService extends EventEmitter {
 
     const serialized = Buffer.from(JSON.stringify(payload), 'utf8');
 
-    // Send Broadcast
+    // Gather all active subnet broadcast destinations
+    const destinations = new Set();
+    destinations.add(BROADCAST_ADDR); // Include global fallback
+
+    try {
+      const interfaces = os.networkInterfaces();
+      for (const name of Object.keys(interfaces)) {
+        for (const entry of interfaces[name]) {
+          if (entry.family === 'IPv4' && !entry.internal) {
+            const bcast = this.getBroadcastAddress(entry.address, entry.netmask);
+            if (bcast) {
+              destinations.add(bcast);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      this.emit('debug', `Failed calculating interface broadcasts: ${e.message}`);
+    }
+
+    // Send Broadcast to all identified broadcast addresses
     if (this.broadcastSocket) {
-      this.broadcastSocket.send(serialized, BROADCAST_PORT, BROADCAST_ADDR, (err) => {
-        if (err) this.emit('debug', `Broadcast send failed: ${err.message}`);
-      });
+      for (const addr of destinations) {
+        this.broadcastSocket.send(serialized, BROADCAST_PORT, addr, (err) => {
+          if (err) this.emit('debug', `Broadcast to ${addr} failed: ${err.message}`);
+        });
+      }
     }
 
     // Send Multicast
@@ -138,7 +202,7 @@ class DiscoveryService extends EventEmitter {
           id: payload.id,
           username: payload.username || 'Unknown Peer',
           deviceNickname: payload.deviceNickname || 'Unknown Device',
-          ip: payload.ip || rinfo.address,
+          ip: rinfo.address,
           chatPort: payload.chatPort,
           filePort: payload.filePort,
           status: payload.status || 'online',
@@ -150,7 +214,7 @@ class DiscoveryService extends EventEmitter {
 
         if (!existing) {
           this.emit('peer-online', peer);
-        } else if (existing.username !== peer.username || existing.deviceNickname !== peer.deviceNickname || existing.status !== peer.status) {
+        } else if (existing.username !== peer.username || existing.deviceNickname !== peer.deviceNickname || existing.status !== peer.status || existing.ip !== peer.ip) {
           this.emit('peer-update', peer);
         }
 
@@ -163,7 +227,7 @@ class DiscoveryService extends EventEmitter {
           id: payload.id,
           username: payload.username,
           deviceNickname: payload.deviceNickname,
-          ip: payload.ip || rinfo.address,
+          ip: rinfo.address,
           chatPort: payload.chatPort,
           filePort: payload.filePort,
           status: payload.status || 'online',
@@ -175,7 +239,7 @@ class DiscoveryService extends EventEmitter {
 
         if (!existing) {
           this.emit('peer-online', peer);
-        } else {
+        } else if (existing.username !== peer.username || existing.deviceNickname !== peer.deviceNickname || existing.status !== peer.status || existing.ip !== peer.ip) {
           this.emit('peer-update', peer);
         }
       }
