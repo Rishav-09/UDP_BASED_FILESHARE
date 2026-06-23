@@ -228,6 +228,7 @@ export function useSocket() {
         ...prev,
         [req.transferId]: {
           transferId: req.transferId,
+          peerId: req.peerId,
           direction: 'download',
           progress: 0,
           speed: 0,
@@ -279,12 +280,14 @@ export function useSocket() {
       }));
     });
 
-    s.on('transfer-progress', (progress: TransferProgress) => {
+    s.on('transfer-progress', (progress: any) => {
+      const calculatedProgress = progress.expectedProgress !== undefined ? progress.expectedProgress : progress.progress;
       setTransfers(prev => ({
         ...prev,
         [progress.transferId]: {
           ...(prev[progress.transferId] || {}),
           ...progress,
+          progress: calculatedProgress,
           status: 'transferring'
         }
       }));
@@ -415,6 +418,7 @@ export function useSocket() {
           ...prev,
           [res.transferId]: {
             transferId: res.transferId,
+            peerId,
             direction: 'upload',
             progress: 0,
             speed: 0,

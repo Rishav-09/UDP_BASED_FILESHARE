@@ -85,7 +85,7 @@ export default function App() {
   
   // Find the active transfer for the currently selected peer to feed the charts
   const activeTransfer = Object.values(transfers).find(
-    t => t.status === 'transferring' && (t.cwnd !== undefined)
+    t => t.peerId === activePeerId && t.status === 'transferring' && (t.cwnd !== undefined)
   );
 
   // Monitor typing debounce
@@ -579,7 +579,7 @@ export default function App() {
             </div>
 
             {/* File Transfer Monitor Dashboard Area (Inline overlay in Chat for ongoing transfers) */}
-            {Object.values(transfers).filter(t => !dismissedTransfers.has(t.transferId)).map(t => {
+            {Object.values(transfers).filter(t => t.peerId === activePeerId && !dismissedTransfers.has(t.transferId)).map(t => {
               const isUpload = t.direction === 'upload';
               const statusLower = (t.status || '').toLowerCase();
               const isCompleted = statusLower === 'completed';
