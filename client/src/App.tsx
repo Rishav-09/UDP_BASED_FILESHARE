@@ -99,27 +99,44 @@ export default function App() {
     });
   };
 
-  // Automatically dismiss finished transfers (completed, failed, rejected, cancelled) after 5 seconds
+  // Automatically dismiss previous finished transfers only when a new active transfer starts
   useEffect(() => {
-    const timers: any[] = [];
-    Object.values(transfers).forEach(t => {
+    const hasActiveTransfer = Object.values(transfers).some(t => {
       const statusLower = (t.status || '').toLowerCase();
-      const isFinished = statusLower === 'completed' || 
-                         statusLower === 'failed' || 
-                         statusLower.includes('error') || 
-                         statusLower === 'rejected' || 
-                         statusLower === 'cancelled';
-      if (isFinished && !dismissedTransfers.has(t.transferId)) {
-        const timer = setTimeout(() => {
-          dismissTransfer(t.transferId);
-        }, 5000);
-        timers.push(timer);
-      }
+      return statusLower !== 'completed' && 
+             statusLower !== 'failed' && 
+             !statusLower.includes('error') && 
+             statusLower !== 'rejected' && 
+             statusLower !== 'cancelled';
     });
-    return () => {
-      timers.forEach(clearTimeout);
-    };
-  }, [transfers, dismissedTransfers]);
+
+    if (hasActiveTransfer) {
+      const finishedIds = Object.values(transfers)
+        .filter(t => {
+          const statusLower = (t.status || '').toLowerCase();
+          return statusLower === 'completed' || 
+                 statusLower === 'failed' || 
+                 statusLower.includes('error') || 
+                 statusLower === 'rejected' || 
+                 statusLower === 'cancelled';
+        })
+        .map(t => t.transferId);
+
+      if (finishedIds.length > 0) {
+        setDismissedTransfers(prev => {
+          const next = new Set(prev);
+          let changed = false;
+          finishedIds.forEach(id => {
+            if (!next.has(id)) {
+              next.add(id);
+              changed = true;
+            }
+          });
+          return changed ? next : prev;
+        });
+      }
+    }
+  }, [transfers]);
 
   // Scroll to bottom of chat
   useEffect(() => {
@@ -657,12 +674,12 @@ export default function App() {
                     type="file" 
                     ref={fileInputRef} 
                     onChange={handleFileChange}
-                    accept="image/*,video/*,audio/*,application/pdf,text/*"
+                    accept="*"
                     className="hidden" 
                   />
                   <button
                     type="button"
-                    onClick={() => handleFileAttach('image/*')}
+                    onClick={() => handleFileAttach('image/*, .jpg, .jpeg, .png, .gif, .bmp, .webp, .svg, .heic, .heif, .psd, .ai, .tiff')}
                     className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
                     title="Send Image"
                   >
@@ -670,7 +687,7 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleFileAttach('video/*')}
+                    onClick={() => handleFileAttach('video/*, .mp4, .mkv, .avi, .mov, .flv, .webm, .m4v, .3gp')}
                     className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
                     title="Send Video"
                   >
@@ -678,7 +695,7 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleFileAttach('audio/*')}
+                    onClick={() => handleFileAttach('audio/*, .mp3, .wav, .aac, .ogg, .m4a, .flac, .wma, .mid')}
                     className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
                     title="Send Audio"
                   >
@@ -686,9 +703,9 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleFileAttach('application/pdf,text/*')}
+                    onClick={() => handleFileAttach('*')}
                     className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
-                    title="Send Document (PDF/Text)"
+                    title="Send Any File / Document"
                   >
                     <FileText size={16} />
                   </button>

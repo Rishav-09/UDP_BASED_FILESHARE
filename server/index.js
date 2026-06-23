@@ -18,7 +18,8 @@ const io = socketIo(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
-  }
+  },
+  maxHttpBufferSize: 1e8 // 100 MB max buffer size for file transfers
 });
 
 let localUiSocket = null;

@@ -447,7 +447,7 @@ class SessionManager {
           transferId,
           direction: 'download',
           fileName: transfer.fileName,
-          bytes: Array.from(decryptedBytes) // Convert to array to send via WS safely
+          bytes: decryptedBytes // Send Node Buffer directly
         });
 
         db.addTransfer({

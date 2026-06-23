@@ -305,7 +305,7 @@ export function useSocket() {
       });
     });
 
-    s.on('transfer-complete', ({ transferId, direction, fileName, bytes }: { transferId: string, direction: 'upload' | 'download', fileName?: string, bytes?: number[] }) => {
+    s.on('transfer-complete', ({ transferId, direction, fileName, bytes }: { transferId: string, direction: 'upload' | 'download', fileName?: string, bytes?: any }) => {
       setTransfers(prev => ({
         ...prev,
         [transferId]: {
@@ -319,8 +319,7 @@ export function useSocket() {
 
       // Trigger standard browser download for incoming file complete
       if (direction === 'download' && fileName && bytes) {
-        const buf = new Uint8Array(bytes);
-        const blob = new Blob([buf]);
+        const blob = new Blob([bytes]);
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -408,10 +407,8 @@ export function useSocket() {
   const sendFile = useCallback((peerId: string, fileName: string, fileBytes: ArrayBuffer) => {
     if (!socketRef.current) return;
     
-    // Convert ArrayBuffer to Uint8Array/Array to transmit via Socket.IO
-    const bytes = Array.from(new Uint8Array(fileBytes));
-
-    socketRef.current.emit('send-file', { peerId, fileName, fileBytes: bytes, mimeType: 'application/octet-stream' }, (res: any) => {
+    // Emit the ArrayBuffer directly to Socket.IO without converting to Array
+    socketRef.current.emit('send-file', { peerId, fileName, fileBytes, mimeType: 'application/octet-stream' }, (res: any) => {
       if (res.success) {
         // Log in transfers progress state
         setTransfers(prev => ({
