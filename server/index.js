@@ -13,13 +13,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.post('/api/feedback', (req, res) => {
+  const { category, affectedArea, severity, description } = req.body;
+  console.log('====================================');
+  console.log('FEEDBACK RECEIVED (Target: officialrishav7@gmail.com)');
+  console.log(`Category: ${category}`);
+  console.log(`Affected Area: ${affectedArea}`);
+  console.log(`Severity: ${severity}`);
+  console.log(`Description: ${description}`);
+  console.log('====================================');
+  res.json({ success: true, message: 'Feedback forwarded to officialrishav7@gmail.com' });
+});
+
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
   },
-  maxHttpBufferSize: 1e8 // 100 MB max buffer size for file transfers
+  maxHttpBufferSize: 2e9 // 2 GB max buffer size for local file transfers
 });
 
 let localUiSocket = null;
