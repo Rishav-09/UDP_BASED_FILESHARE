@@ -74,7 +74,7 @@ export default function App() {
   // Chart historical data points for Recharts
   const [chartData, setChartData] = useState<any[]>([]);
 
-  const [dismissedTransfers, setDismissedTransfers] = useState<Set<string>>(new Set());
+  const [dismissedTransfers, setDismissedTransfers] = useState<Record<string, boolean>>({});
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,11 +92,10 @@ export default function App() {
   const typingTimeoutRef = useRef<any>(null);
 
   const dismissTransfer = (transferId: string) => {
-    setDismissedTransfers(prev => {
-      const next = new Set(prev);
-      next.add(transferId);
-      return next;
-    });
+    setDismissedTransfers(prev => ({
+      ...prev,
+      [transferId]: true
+    }));
   };
 
   // Automatically dismiss previous finished transfers only when a new active transfer starts
@@ -124,11 +123,11 @@ export default function App() {
 
       if (finishedIds.length > 0) {
         setDismissedTransfers(prev => {
-          const next = new Set(prev);
+          const next = { ...prev };
           let changed = false;
           finishedIds.forEach(id => {
-            if (!next.has(id)) {
-              next.add(id);
+            if (!next[id]) {
+              next[id] = true;
               changed = true;
             }
           });
@@ -239,14 +238,20 @@ export default function App() {
       {/* Settings Modal */}
       {showSettings && (
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass w-full max-w-md rounded-3xl p-6 relative overflow-hidden">
-            <button 
-              onClick={() => setShowSettings(false)}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition"
-            >
-              <X size={18} />
-            </button>
-            <div className="flex items-center gap-3 mb-6">
+          <div className="glass w-full max-w-md rounded-3xl p-6 relative overflow-hidden pt-10">
+            {/* macOS titlebar style */}
+            <div className="absolute top-4 left-6 flex items-center gap-1.5 z-10">
+              <button 
+                type="button"
+                onClick={() => setShowSettings(false)}
+                className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#ff5f56]/80 flex items-center justify-center text-[7px] text-rose-950 font-bold group"
+              >
+                <span className="opacity-0 group-hover:opacity-100">×</span>
+              </button>
+              <span className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
+              <span className="w-3 h-3 rounded-full bg-[#27c93f]" />
+            </div>
+            <div className="flex items-center gap-3 mb-6 mt-4">
               <Settings className="text-accent" size={24} />
               <h2 className="text-xl font-bold">Preferences</h2>
             </div>
@@ -289,76 +294,135 @@ export default function App() {
         </div>
       )}
 
-      {/* Connection Handshake Notification */}
-      {incomingConnection && (
-        <div className="absolute bottom-6 left-6 z-50 glass-accent p-6 rounded-2xl glow-blue max-w-sm w-full animate-bounce">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-accent/20 rounded-xl text-accent">
-              <Shield size={24} />
+      {/* Stacking Floating Toast Notification Center */}
+      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-4 max-w-sm w-full pointer-events-none">
+        {/* Connection Handshake Notification */}
+        {incomingConnection && (
+          <div className="pointer-events-auto cyber-card p-6 rounded-2xl glow-cyan w-full relative overflow-hidden transition-all duration-300 border-t-2 border-t-accent animate-slide-in">
+            {/* macOS titlebar style */}
+            <div className="flex items-center gap-1.5 mb-4 border-b border-white/5 pb-2">
+              <button 
+                type="button"
+                onClick={() => respondConnection(incomingConnection.peerId, false)}
+                className="w-2.5 h-2.5 rounded-full bg-[#ff5f56] hover:bg-[#ff5f56]/80 flex items-center justify-center text-[6px] text-rose-950 font-bold group"
+                title="Decline"
+              >
+                <span className="opacity-0 group-hover:opacity-100">×</span>
+              </button>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+              <span className="text-[9px] font-mono text-slate-500 ml-auto uppercase tracking-wider">GATEWAY_CONN</span>
             </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-md text-white">Pairing Request</h3>
-              <p className="text-xs text-gray-400 mt-1">
-                <strong>{incomingConnection.username}</strong> ({incomingConnection.deviceNickname}) wants to establish a secure channel.
-              </p>
-              <div className="flex gap-2 mt-4">
-                <button 
-                  onClick={() => respondConnection(incomingConnection.peerId, true)}
-                  className="px-4 py-2 bg-accent text-bg-0 font-bold text-xs rounded-lg hover:brightness-110 transition"
-                >
-                  Accept
-                </button>
-                <button 
-                  onClick={() => respondConnection(incomingConnection.peerId, false)}
-                  className="px-4 py-2 bg-white/10 text-white font-bold text-xs rounded-lg hover:bg-white/20 transition"
-                >
-                  Reject
-                </button>
+            {/* Visual tech highlights */}
+            <div className="absolute top-0 right-0 w-16 h-16 bg-accent/5 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="flex items-start gap-4">
+              <div className="relative shrink-0">
+                <span className="absolute inset-0 rounded-xl bg-accent/30 animate-radar" />
+                <div className="relative p-3.5 bg-accent/10 border border-accent/25 rounded-xl text-accent">
+                  <Shield size={20} />
+                </div>
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-xs uppercase tracking-widest text-accent/80 font-mono">Pairing Request</h4>
+                <h3 className="font-bold text-base text-white mt-1 leading-tight truncate">{incomingConnection.username}</h3>
+                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{incomingConnection.deviceNickname}</p>
+                
+                <p className="text-xs text-slate-300 mt-3 leading-relaxed">
+                  wants to link devices and establish an encrypted transfer socket.
+                </p>
+                
+                <div className="flex gap-2 mt-5">
+                  <button 
+                    onClick={() => respondConnection(incomingConnection.peerId, true)}
+                    className="flex-1 py-2.5 px-4 btn-premium-cyan font-bold text-xs rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    Accept Link
+                  </button>
+                  <button 
+                    onClick={() => respondConnection(incomingConnection.peerId, false)}
+                    className="py-2.5 px-4 bg-white/5 border border-white/10 hover:border-rose-500/20 text-slate-400 hover:text-rose-400 font-bold text-xs rounded-xl hover:bg-rose-500/5 transition transform active:scale-95"
+                  >
+                    Decline
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* File Permission Notification */}
-      {incomingFileRequest && (
-        <div className="absolute bottom-6 left-6 z-50 glass-accent p-6 rounded-2xl glow-blue max-w-sm w-full">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-accent-strong/20 rounded-xl text-accent-strong">
-              <Download size={24} />
+        {/* File Permission Notification */}
+        {incomingFileRequest && (
+          <div className="pointer-events-auto cyber-card p-6 rounded-2xl glow-emerald w-full relative overflow-hidden transition-all duration-300 border-t-2 border-t-emerald-400 animate-slide-in">
+            {/* macOS titlebar style */}
+            <div className="flex items-center gap-1.5 mb-4 border-b border-white/5 pb-2">
+              <button 
+                type="button"
+                onClick={() => respondFile(incomingFileRequest.transferId, false)}
+                className="w-2.5 h-2.5 rounded-full bg-[#ff5f56] hover:bg-[#ff5f56]/80 flex items-center justify-center text-[6px] text-rose-950 font-bold group"
+                title="Decline"
+              >
+                <span className="opacity-0 group-hover:opacity-100">×</span>
+              </button>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+              <span className="text-[9px] font-mono text-slate-500 ml-auto uppercase tracking-wider">GATEWAY_PAYLOAD</span>
             </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-md text-white">Incoming File</h3>
-              <p className="text-xs text-gray-400 mt-1">
-                Peer wants to send you:
-              </p>
-              <p className="text-sm font-semibold text-accent mt-1 break-all">
-                {incomingFileRequest.fileName}
-              </p>
-              <p className="text-xs text-gray-400">
-                Size: {formatSize(incomingFileRequest.fileSize)} ({incomingFileRequest.compressionType})
-              </p>
-              <div className="flex gap-2 mt-4">
-                <button 
-                  onClick={() => respondFile(incomingFileRequest.transferId, true)}
-                  className="px-4 py-2 bg-accent text-bg-0 font-bold text-xs rounded-lg hover:brightness-110 transition"
-                >
-                  Download
-                </button>
-                <button 
-                  onClick={() => respondFile(incomingFileRequest.transferId, false)}
-                  className="px-4 py-2 bg-white/10 text-white font-bold text-xs rounded-lg hover:bg-white/20 transition"
-                >
-                  Decline
-                </button>
+            {/* Visual tech highlights */}
+            <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-start gap-4">
+              <div className="relative shrink-0">
+                <span className="absolute inset-0 rounded-xl bg-emerald-400/30 animate-radar" />
+                <div className="relative p-3.5 bg-emerald-400/10 border border-emerald-400/25 rounded-xl text-emerald-400">
+                  <Download size={20} />
+                </div>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-xs uppercase tracking-widest text-emerald-400 font-mono">Incoming File</h4>
+                
+                <div className="bg-slate-950/60 border border-white/5 rounded-xl p-3 my-3">
+                  <p className="text-xs font-bold text-slate-200 break-all leading-snug">
+                    {incomingFileRequest.fileName}
+                  </p>
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/5 text-[9px] font-mono text-slate-400">
+                    <span>Size: <strong className="text-slate-300 font-sans">{formatSize(incomingFileRequest.fileSize)}</strong></span>
+                    <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider font-semibold text-[8px]">
+                      {incomingFileRequest.compressionType}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => respondFile(incomingFileRequest.transferId, true)}
+                    className="flex-1 py-2.5 px-4 btn-premium-emerald font-bold text-xs rounded-xl shadow-lg transition transform active:scale-95"
+                  >
+                    Download File
+                  </button>
+                  <button 
+                    onClick={() => respondFile(incomingFileRequest.transferId, false)}
+                    className="py-2.5 px-4 bg-white/5 border border-white/10 hover:border-rose-500/20 text-slate-400 hover:text-rose-400 font-bold text-xs rounded-xl hover:bg-rose-500/5 transition transform active:scale-95"
+                  >
+                    Decline
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 2. Left Sidebar (Peers & Settings) */}
       <aside className="w-80 glass border-r border-white/5 flex flex-col h-full shrink-0">
+        {/* macOS Titlebar controls */}
+        <div className="flex items-center gap-1.5 px-4 pt-4 pb-2 shrink-0">
+          <span className="w-3 h-3 rounded-full bg-[#ff5f56] opacity-80" />
+          <span className="w-3 h-3 rounded-full bg-[#ffbd2e] opacity-80" />
+          <span className="w-3 h-3 rounded-full bg-[#27c93f] opacity-80" />
+        </div>
         {/* Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -392,19 +456,29 @@ export default function App() {
         </div>
 
         {/* Tab Controls */}
-        <div className="flex border-b border-white/5">
-          <button 
-            onClick={() => setActiveTab('chats')}
-            className={`flex-1 py-3 text-xs uppercase tracking-wider font-semibold border-b ${activeTab === 'chats' ? 'border-accent text-accent' : 'border-transparent text-gray-400 hover:text-white'} transition`}
-          >
-            Peers List
-          </button>
-          <button 
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 py-3 text-xs uppercase tracking-wider font-semibold border-b ${activeTab === 'history' ? 'border-accent text-accent' : 'border-transparent text-gray-400 hover:text-white'} transition`}
-          >
-            Past Logs
-          </button>
+        <div className="p-2 border-b border-white/5">
+          <div className="flex bg-slate-950/40 p-1 rounded-xl border border-white/5">
+            <button 
+              onClick={() => setActiveTab('chats')}
+              className={`flex-1 py-2 text-center text-xs font-semibold rounded-lg transition-all duration-300 ${
+                activeTab === 'chats' 
+                  ? 'bg-accent/15 border border-accent/20 text-accent font-bold' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Peers List
+            </button>
+            <button 
+              onClick={() => setActiveTab('history')}
+              className={`flex-1 py-2 text-center text-xs font-semibold rounded-lg transition-all duration-300 ${
+                activeTab === 'history' 
+                  ? 'bg-accent/15 border border-accent/20 text-accent font-bold' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Past Logs
+            </button>
+          </div>
         </div>
 
         {/* Scrolled Lists */}
@@ -428,8 +502,15 @@ export default function App() {
                     <button
                       key={peer.id}
                       onClick={() => setActivePeerId(peer.id)}
-                      className={`w-full text-left p-3 rounded-2xl flex items-center justify-between transition ${isSelected ? 'bg-accent/15 border border-accent/20 text-white' : 'hover:bg-white/5 border border-transparent text-gray-300'}`}
+                      className={`w-full text-left p-3.5 rounded-2xl flex items-center justify-between transition-all duration-300 relative overflow-hidden border ${
+                        isSelected 
+                          ? 'bg-accent/10 border-accent/30 text-white shadow-[0_0_15px_rgba(71,212,255,0.15)]' 
+                          : 'hover:bg-white/5 border-transparent text-slate-300 hover:text-white'
+                      }`}
                     >
+                      {isSelected && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent" />
+                      )}
                       <div className="flex items-center gap-3 truncate">
                         <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-semibold uppercase text-xs">
                           {peer.username.slice(0, 2)}
@@ -554,16 +635,20 @@ export default function App() {
                           key={msg.id}
                           className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}
                         >
-                          <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-xs shadow-md border ${isSelf ? 'bg-gradient-to-tr from-accent/20 to-accent-strong/10 border-accent/20 text-white rounded-br-none' : 'bg-white/5 border-white/5 text-gray-100 rounded-bl-none'}`}>
-                            <p className="break-all">{msg.text}</p>
-                            <div className="flex items-center justify-end gap-1.5 mt-1 text-[9px] text-gray-400 leading-none">
+                          <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-xs shadow-md border transition-all duration-300 ${
+                            isSelf 
+                              ? 'bg-gradient-to-tr from-accent/15 to-accent-strong/5 border-accent/20 text-white rounded-tr-sm' 
+                              : 'bg-white/5 border-white/5 text-slate-100 rounded-tl-sm'
+                          }`}>
+                            <p className="break-all leading-relaxed">{msg.text}</p>
+                            <div className="flex items-center justify-end gap-1.5 mt-1.5 text-[9px] text-slate-400 leading-none">
                               <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               {isSelf && (
                                 <span>
                                   {msg.status === 'seen' ? (
-                                    <CheckCheck size={11} className="text-accent" />
+                                    <CheckCheck size={10} className="text-accent" />
                                   ) : (
-                                    <Check size={11} />
+                                    <Check size={10} />
                                   )}
                                 </span>
                               )}
@@ -579,10 +664,10 @@ export default function App() {
             </div>
 
             {/* File Transfer Monitor Dashboard Area (Inline overlay in Chat for ongoing transfers) */}
-            {Object.values(transfers).filter(t => t.peerId === activePeerId && !dismissedTransfers.has(t.transferId)).map(t => {
+            {Object.values(transfers).filter(t => t.peerId === activePeerId && !dismissedTransfers[t.transferId]).map(t => {
               const isUpload = t.direction === 'upload';
               const statusLower = (t.status || '').toLowerCase();
-              const isCompleted = statusLower === 'completed';
+              const isCompleted = statusLower === 'completed' || (t.progress || 0) >= 1;
               const isFailed = statusLower === 'failed' || statusLower.includes('error') || statusLower.includes('fail');
               const isRejected = statusLower === 'rejected';
               const isCancelled = statusLower === 'cancelled';
@@ -597,39 +682,89 @@ export default function App() {
               else if (isCancelled) statusText = 'Transfer cancelled';
 
               return (
-                <div key={t.transferId} className={`p-4 bg-white/2 border-t border-white/5 flex flex-col gap-2 ${isCompleted ? 'border-l-4 border-l-emerald-500' : isFailed || isRejected ? 'border-l-4 border-l-rose-500' : isCancelled ? 'border-l-4 border-l-gray-500' : ''}`}>
+                <div 
+                  key={t.transferId} 
+                  className={`p-4 bg-slate-900/60 backdrop-blur-md border-t border-white/5 flex flex-col gap-3 transition-all duration-300 relative overflow-hidden ${
+                    isCompleted 
+                      ? 'border-l-4 border-l-emerald-500 bg-emerald-500/5' 
+                      : isFailed || isRejected 
+                        ? 'border-l-4 border-l-rose-500 bg-rose-500/5' 
+                        : isCancelled 
+                          ? 'border-l-4 border-l-gray-500 bg-gray-500/5' 
+                          : 'border-l-4 border-l-accent'
+                  }`}
+                >
+                  {/* macOS titlebar style */}
+                  <div className="flex items-center gap-1.5 border-b border-white/5 pb-2">
+                    <button 
+                      type="button"
+                      onClick={() => isFinished ? dismissTransfer(t.transferId) : controlTransfer(t.transferId, 'cancel')}
+                      className="w-2.5 h-2.5 rounded-full bg-[#ff5f56] hover:bg-[#ff5f56]/80 flex items-center justify-center text-[6px] text-rose-950 font-bold group"
+                      title={isFinished ? "Dismiss" : "Cancel"}
+                    >
+                      <span className="opacity-0 group-hover:opacity-100">×</span>
+                    </button>
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+                    <span className="text-[9px] font-mono text-slate-500 ml-auto uppercase tracking-wider">
+                      {isUpload ? 'UPLOAD_STREAM' : 'DOWNLOAD_STREAM'}
+                    </span>
+                  </div>
+
                   <div className="flex justify-between items-center text-xs">
-                    <div className="flex items-center gap-2 truncate">
+                    <div className="flex items-center gap-2.5 truncate">
                       {isCompleted ? (
-                        <span className="text-emerald-400 font-bold">✓</span>
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-emerald-500/30">
+                          ✓
+                        </div>
                       ) : isFailed || isRejected || isCancelled ? (
-                        <span className="text-rose-400 font-bold">✗</span>
+                        <div className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-rose-500/30">
+                          ✗
+                        </div>
                       ) : isUpload ? (
-                        <FileUp size={16} className="text-blue-400" />
+                        <FileUp size={15} className="text-accent animate-pulse shrink-0" />
                       ) : (
-                        <Download size={16} className="text-emerald-400" />
+                        <Download size={15} className="text-emerald-400 animate-pulse shrink-0" />
                       )}
-                      <span className="font-semibold text-gray-100 truncate">{statusText}</span>
+                      <span className="font-semibold text-slate-200 truncate">{statusText}</span>
                     </div>
-                    {!isFinished && <span className="text-gray-400">{formatSpeed(t.speed)}</span>}
+                    {!isFinished && (
+                      <span className="text-[10px] bg-white/5 border border-white/5 px-2 py-0.5 rounded-md font-mono text-slate-300">
+                        {formatSpeed(t.speed)}
+                      </span>
+                    )}
                   </div>
                   
-                  <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden relative border border-white/5">
+                  <div className="w-full bg-white/5 h-2.5 rounded-full overflow-hidden relative border border-white/5 shadow-inner">
                     <div 
-                      className={`h-full bg-gradient-to-r ${isFailed || isRejected ? 'from-rose-500 to-red-600' : isCancelled ? 'from-gray-500 to-gray-600' : isCompleted ? 'from-emerald-500 to-teal-400' : isUpload ? 'from-blue-500 to-accent' : 'from-emerald-500 to-teal-400'} transition-all duration-300`}
+                      className={`h-full bg-gradient-to-r ${
+                        isFailed || isRejected 
+                          ? 'from-rose-500 to-red-500' 
+                          : isCancelled 
+                            ? 'from-gray-500 to-gray-600' 
+                            : isCompleted 
+                              ? 'from-emerald-500 to-teal-400' 
+                              : isUpload 
+                                ? 'from-blue-500 to-accent' 
+                                : 'from-emerald-500 to-teal-400'
+                      } transition-all duration-300`}
                       style={{ width: `${isFinished ? 100 : (t.progress || 0) * 100}%` }}
                     />
                   </div>
 
-                  <div className="flex justify-between items-center text-[10px] text-gray-400">
-                    <span>{isFinished ? (isCompleted ? '100% complete' : 'Stopped') : `${Math.round((t.progress || 0) * 100)}% complete`}</span>
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-400 font-medium">
+                      {isFinished 
+                        ? (isCompleted ? '100% complete' : 'Stopped') 
+                        : `${Math.round((t.progress || 0) * 100)}% complete`}
+                    </span>
                     <div className="flex gap-2">
-                      {!isFinished ? (
+                      {!isFinished && (
                         <>
                           {t.status === 'transferring' ? (
                             <button 
                               onClick={() => controlTransfer(t.transferId, 'pause')}
-                              className="p-1 hover:text-white hover:bg-white/5 rounded"
+                              className="p-1.5 hover:text-white text-slate-400 bg-white/5 hover:bg-white/10 rounded-lg transition"
                               title="Pause"
                             >
                               <Pause size={12} />
@@ -637,7 +772,7 @@ export default function App() {
                           ) : t.status === 'Paused' ? (
                             <button 
                               onClick={() => controlTransfer(t.transferId, 'resume')}
-                              className="p-1 hover:text-white hover:bg-white/5 rounded"
+                              className="p-1.5 hover:text-white text-slate-400 bg-white/5 hover:bg-white/10 rounded-lg transition"
                               title="Resume"
                             >
                               <Play size={12} />
@@ -645,20 +780,12 @@ export default function App() {
                           ) : null}
                           <button 
                             onClick={() => controlTransfer(t.transferId, 'cancel')}
-                            className="p-1 hover:text-rose-400 hover:bg-white/5 rounded"
+                            className="p-1.5 hover:text-rose-400 text-slate-400 bg-white/5 hover:bg-white/10 rounded-lg transition"
                             title="Cancel"
                           >
                             <X size={12} />
                           </button>
                         </>
-                      ) : (
-                        <button 
-                          onClick={() => dismissTransfer(t.transferId)}
-                          className="p-1 hover:text-white hover:bg-white/5 rounded text-gray-400"
-                          title="Dismiss"
-                        >
-                          <X size={12} />
-                        </button>
                       )}
                     </div>
                   </div>
@@ -668,8 +795,8 @@ export default function App() {
 
             {/* Input Bar */}
             {activeConnectionState === 'connected' && (
-              <div className="p-4 border-t border-white/5 bg-bg-0/30">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
+              <div className="p-4 border-t border-white/5 bg-slate-950/20 backdrop-blur-md">
+                <form onSubmit={handleSendMessage} className="flex gap-2 max-w-5xl mx-auto w-full items-center">
                   <input 
                     type="file" 
                     ref={fileInputRef} 
@@ -677,50 +804,52 @@ export default function App() {
                     accept="*"
                     className="hidden" 
                   />
-                  <button
-                    type="button"
-                    onClick={() => handleFileAttach('image/*, .jpg, .jpeg, .png, .gif, .bmp, .webp, .svg, .heic, .heif, .psd, .ai, .tiff')}
-                    className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
-                    title="Send Image"
-                  >
-                    <Image size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleFileAttach('video/*, .mp4, .mkv, .avi, .mov, .flv, .webm, .m4v, .3gp')}
-                    className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
-                    title="Send Video"
-                  >
-                    <Video size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleFileAttach('audio/*, .mp3, .wav, .aac, .ogg, .m4a, .flac, .wma, .mid')}
-                    className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
-                    title="Send Audio"
-                  >
-                    <Music size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleFileAttach('*')}
-                    className="p-3 bg-white/5 hover:bg-white/10 hover:text-accent border border-white/5 text-gray-300 rounded-xl transition flex items-center justify-center shrink-0"
-                    title="Send Any File / Document"
-                  >
-                    <FileText size={16} />
-                  </button>
+                  <div className="flex bg-white/5 border border-white/5 rounded-xl p-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleFileAttach('image/*, .jpg, .jpeg, .png, .gif, .bmp, .webp, .svg, .heic, .heif, .psd, .ai, .tiff')}
+                      className="p-2.5 text-slate-400 hover:text-accent hover:bg-white/5 rounded-lg transition"
+                      title="Send Image"
+                    >
+                      <Image size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleFileAttach('video/*, .mp4, .mkv, .avi, .mov, .flv, .webm, .m4v, .3gp')}
+                      className="p-2.5 text-slate-400 hover:text-accent hover:bg-white/5 rounded-lg transition"
+                      title="Send Video"
+                    >
+                      <Video size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleFileAttach('audio/*, .mp3, .wav, .aac, .ogg, .m4a, .flac, .wma, .mid')}
+                      className="p-2.5 text-slate-400 hover:text-accent hover:bg-white/5 rounded-lg transition"
+                      title="Send Audio"
+                    >
+                      <Music size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleFileAttach('*')}
+                      className="p-2.5 text-slate-400 hover:text-accent hover:bg-white/5 rounded-lg transition"
+                      title="Send Any File"
+                    >
+                      <FileText size={15} />
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={messageText}
                     onChange={handleInputChange}
-                    placeholder="Enter message..."
-                    className="flex-1 bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-accent transition text-white"
+                    placeholder="Type a secure message..."
+                    className="flex-1 bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-accent/40 focus:bg-white/10 transition text-white placeholder-slate-500"
                   />
                   <button
                     type="submit"
-                    className="p-3 bg-gradient-to-r from-accent to-accent-strong text-bg-0 rounded-xl transition flex items-center justify-center shrink-0 hover:shadow-lg transform active:scale-95"
+                    className="p-3 btn-premium-cyan rounded-xl transition flex items-center justify-center shrink-0"
                   >
-                    <Send size={18} />
+                    <Send size={15} />
                   </button>
                 </form>
               </div>
@@ -746,16 +875,18 @@ export default function App() {
           <div className="space-y-6">
             {/* Speed & Compression Telemetry */}
             <div className="grid grid-cols-2 gap-2">
-              <div className="p-3 bg-white/2 rounded-2xl border border-white/5">
-                <div className="text-[10px] text-gray-400 uppercase tracking-wider">Speed</div>
-                <div className="text-md font-bold text-accent mt-1 flex items-center gap-1">
-                  <Zap size={14} /> {formatSpeed(activeTransfer.speed)}
+              <div className="p-3.5 bg-slate-900/40 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-accent" />
+                <div className="text-[9px] text-slate-400 uppercase tracking-widest font-mono">Speed</div>
+                <div className="text-sm font-bold text-white mt-1 flex items-center gap-1">
+                  <Zap size={13} className="text-accent" /> {formatSpeed(activeTransfer.speed)}
                 </div>
               </div>
-              <div className="p-3 bg-white/2 rounded-2xl border border-white/5">
-                <div className="text-[10px] text-gray-400 uppercase tracking-wider">RTT</div>
-                <div className="text-md font-bold text-accent-strong mt-1 flex items-center gap-1">
-                  <Clock size={14} /> {activeTransfer.rtt ? `${activeTransfer.rtt} ms` : 'Calculating...'}
+              <div className="p-3.5 bg-slate-900/40 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-accent-strong" />
+                <div className="text-[9px] text-slate-400 uppercase tracking-widest font-mono">RTT</div>
+                <div className="text-sm font-bold text-white mt-1 flex items-center gap-1">
+                  <Clock size={13} className="text-accent-strong" /> {activeTransfer.rtt ? `${activeTransfer.rtt} ms` : '0 ms'}
                 </div>
               </div>
             </div>
