@@ -38,27 +38,51 @@ File Share/
 
 ---
 
-## 🚀 How to Run the Application
+## 🚀 How to Run the Application (Offline-Ready)
 
-### Prerequisites
-* [Node.js](https://nodejs.org) (v18 or higher recommended)
-* [npm](https://www.npmjs.com/)
+This project has been configured to run completely offline without requiring internet access or the `npm install` command at runtime.
 
-### Installation & Launch
+### Option 1: Standard Offline Setup (Using pre-packaged Electron binaries)
 
-1. **Clone/Copy the Folder**: Make sure the project folder is on your local machine.
-2. **Install Dependencies**:
-   In the root directory, run the helper command to install dependencies for both the Electron backend and the React client:
+Follow these steps to run the application on any restricted or offline machine:
+
+#### Step 1: Pre-Build the Client (Done on an internet-connected PC)
+1. In the `client/` directory, build the React frontend:
+   ```bash
+   cd client
+   npm run build
+   ```
+   *This compiles all React components into a static `client/dist` bundle.*
+
+#### Step 2: Download Electron Portable
+1. Go to the [Electron Releases Page](https://github.com/electron/electron/releases) on any internet-connected device.
+2. Download the official zip file for Windows (e.g., `electron-v33.0.0-win32-x64.zip`).
+3. Copy this zip file to your offline PC using a USB drive.
+4. Extract it (for example, into `C:\bin\electron`).
+
+#### Step 3: Run the Application Offline
+On the offline PC, open PowerShell in the project directory and run:
+```powershell
+C:\bin\electron\electron.exe "C:\Users\offic\OneDrive\Desktop\File Share"
+```
+*(Make sure to replace `"C:\Users\offic\OneDrive\Desktop\File Share"` with your actual workspace folder path).*
+
+---
+
+### Option 2: Development Mode (With Internet Access)
+
+If you are on an internet-connected PC and want to run it in standard development mode:
+
+1. **Install Dependencies**:
    ```bash
    npm run install:all
    ```
-3. **Start the Application**:
-   To boot the React Vite compiler and Electron side-by-side in development mode, run:
+2. **Start Development Server**:
    ```bash
    npm run dev:all
    ```
-4. **Run on Windows with Start Script**:
-   You can also double-click the `start.bat` file in the root folder to boot the app instantly.
+3. **Double Click to Run**:
+   You can also double-click `start.bat` in the root folder to boot the app instantly.
 
 ---
 
