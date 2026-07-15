@@ -5,10 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron .",
-    "install:all": "npm install && cd client && npm install",
-    "dev:all": "concurrently \"npm run dev:client\" \"npm run start\"",
-    "dev:client": "cd client && npm run dev"
+    "dev": "electron ."
   },
   "keywords": [],
   "author": "",

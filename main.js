@@ -22,13 +22,8 @@ function createWindow() {
     },
   });
 
-  // Check if we are in development mode
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
-  } else {
-    mainWindow.loadFile(path.join(__dirname, 'client/dist/index.html'));
-  }
+  // Always load the offline static bundle directly
+  mainWindow.loadFile(path.join(__dirname, 'client/dist/index.html'));
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
