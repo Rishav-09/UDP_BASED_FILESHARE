@@ -20,7 +20,7 @@ SwiftShare LAN is a high-speed, secure, peer-to-peer file sharing and chat appli
 
 ```
 File Share/
-├── main.js                  # Electron main process (spawns backend & browser)
+├── main.js                  # Electron main process (spawns backend & browser window)
 ├── preload.js               # Safe IPC bridge for renderer
 ├── database/                # JSON-based atomic write data store
 ├── encryption/              # Cryptographic core (ECDH & AES-256-GCM)
@@ -38,51 +38,103 @@ File Share/
 
 ---
 
-## 🚀 How to Run the Application (Offline-Ready)
+## 📋 Prerequisites & Requirements
 
-This project has been configured to run completely offline without requiring internet access or the `npm install` command at runtime.
+Before setting up and running the application, make sure you have the following installed on your system:
 
-### Option 1: Standard Offline Setup (Using pre-packaged Electron binaries)
+### 1. Node.js (v18.x or v20.x recommended)
+The application requires the Node.js runtime environment to execute both the Express/Socket.IO backend server and the Electron container wrapper.
+* **Windows & macOS**: Download the LTS installer directly from the [Official Node.js Downloads page](https://nodejs.org/en/download). Follow the standard installation wizard instructions.
+* Verify your installation by running the following commands in your terminal/PowerShell:
+  ```bash
+  node -v
+  npm -v
+  ```
 
-Follow these steps to run the application on any restricted or offline machine:
-
-#### Step 1: Pre-Build the Client (Done on an internet-connected PC)
-1. In the `client/` directory, build the React frontend:
-   ```bash
-   cd client
-   npm run build
-   ```
-   *This compiles all React components into a static `client/dist` bundle.*
-
-#### Step 2: Download Electron Portable
-1. Go to the [Electron Releases Page](https://github.com/electron/electron/releases) on any internet-connected device.
-2. Download the official zip file for Windows (e.g., `electron-v33.0.0-win32-x64.zip`).
-3. Copy this zip file to your offline PC using a USB drive.
-4. Extract it (for example, into `C:\bin\electron`).
-
-#### Step 3: Run the Application Offline
-On the offline PC, open PowerShell in the project directory and run:
-```powershell
-C:\bin\electron\electron.exe "C:\Users\offic\OneDrive\Desktop\File Share"
-```
-*(Make sure to replace `"C:\Users\offic\OneDrive\Desktop\File Share"` with your actual workspace folder path).*
+### 2. Git
+To clone the repository and manage your codebase, you should have Git installed.
+* **Windows**: Download and install from [Git for Windows](https://git-scm.com/download/win).
+* **macOS**: Install using Homebrew (`brew install git`) or install Xcode Command Line Tools by running `xcode-select --install` in the terminal.
 
 ---
 
-### Option 2: Development Mode (With Internet Access)
+## ⚙️ A-Z Installation & Setup Guide
 
-If you are on an internet-connected PC and want to run it in standard development mode:
+Follow these steps to set up the dependencies and configure the workspace from scratch.
 
-1. **Install Dependencies**:
-   ```bash
-   npm run install:all
-   ```
-2. **Start Development Server**:
+### Step 1: Clone the Repository
+Open your terminal (macOS/Linux) or PowerShell (Windows) and clone the repository:
+```bash
+git clone https://github.com/Rishav-09/UDP_BASED_FILESHARE.git
+cd UDP_BASED_FILESHARE
+```
+
+### Step 2: Install All Dependencies
+The project is organized as a monorepo-style structure, containing root dependencies (for Electron and developer tooling) and client-specific React dependencies. 
+
+To make setup straightforward, a helper command is configured in the root `package.json` to install both:
+```bash
+npm run install:all
+```
+
+> [!NOTE]
+> If you prefer to install packages manually or if the helper script fails, run:
+> ```bash
+> # 1. Install root dependencies (Electron, concurrently, etc.)
+> npm install
+> 
+> # 2. Install React frontend dependencies
+> cd client
+> npm install
+> cd ..
+> ```
+
+---
+
+## 🚀 How to Run the Application
+
+You can run the application in either **Development Mode** (with hot-reloading for UI updates) or **Production Mode** (standalone compiled bundle).
+
+### Option 1: Running in Development Mode (Recommended)
+
+In development mode, Vite serves the React UI on `http://localhost:5173`, and Electron hooks into this address while also spawning the local UDP/Socket.IO P2P node.
+
+1. Start all components concurrently:
    ```bash
    npm run dev:all
    ```
-3. **Double Click to Run**:
-   You can also double-click `start.bat` in the root folder to boot the app instantly.
+2. Alternatively, you can run them manually in separate terminal tabs:
+   * **Tab 1 (React Frontend)**:
+     ```bash
+     cd client
+     npm run dev
+     ```
+   * **Tab 2 (Electron & Local Server)**:
+     ```bash
+     npm start
+     ```
+
+* **Windows Quick-Start**: Double-click the `start.bat` file in the root directory to automatically execute `npm run dev:all`.
+
+---
+
+### Option 2: Running in Production Mode (Pre-compiled Static Bundle)
+
+For optimum performance or when deploying to target LAN machines, compile the frontend into a static bundle.
+
+1. **Build the React frontend client**:
+   ```bash
+   cd client
+   npm run build
+   cd ..
+   ```
+   *This generates a compiled, optimized bundle inside `client/dist/`.*
+
+2. **Launch Electron loading the production build**:
+   ```bash
+   npm start
+   ```
+   *Electron will automatically detect that Vite is not serving, or it will load `client/dist/index.html` as fallback.*
 
 ---
 
@@ -92,47 +144,47 @@ Here is the exact step-by-step process of how two devices (Sender and Receiver) 
 
 ```
 [ Sender (Peer A) ]                                       [ Receiver (Peer B) ]
-        |                                                           |
-        | ------------- UDP Broadcast (DISCOVER_USER) ------------> | (B detects A)
-        | <----------- UDP Unicast (USER_AVAILABLE) --------------- | (A detects B)
-        |                                                           |
-        | ========================================================= |
-        |                 1. SECURE PAIRING HANDSHAKE               |
-        | ========================================================= |
-        |                                                           |
-        | ---- Socket.IO Client Link (connection-request) --------> | (Shows pairing prompt)
-        | <--- Socket.IO (connection-response Accepted) ----------- | (User clicks Accept)
-        |                                                           |
-        | ---- Socket.IO (ECDH Public Key A) ---------------------> |
-        | <--- Socket.IO (ECDH Public Key B) ---------------------- |
-        |   [Derives session key]                   [Derives session key]
-        |                                                           |
-        | ========================================================= |
-        |                 2. ENCRYPTED P2P CHAT ACTIVE              |
-        | ========================================================= |
-        |                                                           |
-        | ---- AES-256-GCM Msg -----------------------------------> | (Decrypted & shown)
-        |                                                           |
-        | ========================================================= |
-        |                 3. RELIABLE UDP FILE SHARING              |
-        | ========================================================= |
-        |                                                           |
-        | ---- Socket.IO (File request: size, hash) --------------> | (Shows file prompt)
-        |                                                           |
-        |                                    [Starts UDP Receiver on random port]
-        | <--- Socket.IO (Accept, UDP Port: 45678) ---------------- | 
-        |                                                           |
-        | [Compresses file]                                         |
-        | [Encrypts whole file]                                     |
-        | ---- Socket.IO (AES IV/Tag metadata) -------------------> |
-        |                                                           |
-        | ---- UDP Data Packets (Sliding Window) -----------------> | [Buffers out-of-order]
-        | <--- UDP Feedback Packets (ACK / SACK) ------------------ | [Slides expected pointer]
-        |                                                           |
-        | ---- UDP FIN Packet ------------------------------------> | 
-        |                                                           | [Decrypts & decompress]
-        |                                                           | [Verifies SHA-256 hash]
-        |                                                           | [Saves to Downloads]
+         |                                                           |
+         | ------------- UDP Broadcast (DISCOVER_USER) ------------> | (B detects A)
+         | <----------- UDP Unicast (USER_AVAILABLE) --------------- | (A detects B)
+         |                                                           |
+         | ========================================================= |
+         |                 1. SECURE PAIRING HANDSHAKE               |
+         | ========================================================= |
+         |                                                           |
+         | ---- Socket.IO Client Link (connection-request) --------> | (Shows pairing prompt)
+         | <--- Socket.IO (connection-response Accepted) ----------- | (User clicks Accept)
+         |                                                           |
+         | ---- Socket.IO (ECDH Public Key A) ---------------------> |
+         | <--- Socket.IO (ECDH Public Key B) ---------------------- |
+         |   [Derives session key]                   [Derives session key]
+         |                                                           |
+         | ========================================================= |
+         |                 2. ENCRYPTED P2P CHAT ACTIVE              |
+         | ========================================================= |
+         |                                                           |
+         | ---- AES-256-GCM Msg -----------------------------------> | (Decrypted & shown)
+         |                                                           |
+         | ========================================================= |
+         |                 3. RELIABLE UDP FILE SHARING              |
+         | ========================================================= |
+         |                                                           |
+         | ---- Socket.IO (File request: size, hash) --------------> | (Shows file prompt)
+         |                                                           |
+         |                                    [Starts UDP Receiver on random port]
+         | <--- Socket.IO (Accept, UDP Port: 45678) ---------------- | 
+         |                                                           |
+         | [Compresses file]                                         |
+         | [Encrypts whole file]                                     |
+         | ---- Socket.IO (AES IV/Tag metadata) -------------------> |
+         |                                                           |
+         | ---- UDP Data Packets (Sliding Window) -----------------> | [Buffers out-of-order]
+         | <--- UDP Feedback Packets (ACK / SACK) ------------------ | [Slides expected pointer]
+         |                                                           |
+         | ---- UDP FIN Packet ------------------------------------> | 
+         |                                                           | [Decrypts & decompress]
+         |                                                           | [Verifies SHA-256 hash]
+         |                                                           | [Saves to Downloads]
 ```
 
 ### Protocol Details & Congestion Scaling
@@ -145,3 +197,20 @@ Here is the exact step-by-step process of how two devices (Sender and Receiver) 
   * The window is reset to `1`: `cwnd = 1.0`
   * The sender falls back into Slow Start.
 * **Selective ACKs (SACK)**: The receiver tracks out-of-order packets and includes them in the ACK feedback payload. This allows the sender to *only* retransmit missing chunks, minimizing unnecessary network load.
+
+---
+
+## 🛠️ Troubleshooting
+
+### 1. Port Already In Use (`EADDRINUSE`)
+If you receive an error saying port `41234`, `41235`, or another port is already in use:
+* A background instance of the application might still be running.
+* **Windows**: Run `taskkill /F /IM node.exe` and `taskkill /F /IM electron.exe` in Command Prompt.
+* **macOS**: Run `killall node` and `killall Electron` in the Terminal.
+
+### 2. Peers Not Discovering Each Other
+* Ensure both devices are connected to the **same** local network / Wi-Fi subnet.
+* Check your Firewall settings:
+  * **Windows**: Ensure that both Node.js and Electron are allowed through Windows Defender Firewall for Private Networks.
+  * **macOS**: Check System Settings -> Network -> Firewall and ensure incoming connections are not fully blocked.
+* Make sure multicast/broadcast is not disabled by your router configuration (some corporate and public Wi-Fi networks block multicast and broadcast traffic).
