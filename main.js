@@ -25,9 +25,12 @@ function createWindow() {
   // Dynamically load Vite dev server in development, or the production static bundle
   const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173').catch(() => {
-      mainWindow.loadFile(path.join(__dirname, 'client/dist/index.html'));
-    });
+    const loadDevServer = () => {
+      mainWindow.loadURL('http://localhost:5173').catch(() => {
+        setTimeout(loadDevServer, 500); // Retry every 500ms if Vite is still starting up
+      });
+    };
+    loadDevServer();
   } else {
     mainWindow.loadFile(path.join(__dirname, 'client/dist/index.html'));
   }
