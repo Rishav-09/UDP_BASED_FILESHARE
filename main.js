@@ -26,7 +26,7 @@ function createWindow() {
   const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
   if (isDev) {
     const loadDevServer = () => {
-      mainWindow.loadURL('http://localhost:5173').catch(() => {
+      mainWindow.loadURL('http://127.0.0.1:5173').catch(() => {
         setTimeout(loadDevServer, 500); // Retry every 500ms if Vite is still starting up
       });
     };
